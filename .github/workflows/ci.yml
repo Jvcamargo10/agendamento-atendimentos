@@ -24,6 +24,8 @@ jobs:
         with: { distribution: temurin, java-version: "21", cache: maven }
       - name: Compilar e testar (PostgreSQL e Kafka reais via Testcontainers)
         run: mvn -B -ntp verify 2>&1 | tee build.log; test "${PIPESTATUS[0]}" -eq 0
+      - name: Resumo dos testes
+        run: grep -E "Tests run:.*Fail" build.log | tail -4 | sed "s/^/::notice title=Testes::/"
       - name: Resumo da falha
         if: failure()
         run: |
