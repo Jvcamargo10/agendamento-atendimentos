@@ -190,7 +190,8 @@ class AgendamentoIntegracaoTest {
                 .untilAsserted(() -> assertThat(painelUnidade2()).containsEntry("atendidos", 1));
     }
 
-    private Map<?, ?> painelUnidade2() {
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> painelUnidade2() {
         return graphql.document("{ painel(dia: \"2030-03-11\") { unidade { id } agendados cancelados atendidos } }")
                 .execute().path("painel[1]").entity(Map.class).get();
     }

@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - run: docker build -t agendamento-atendimentos:ci backend
+      - run: docker build --progress=plain -t agendamento-atendimentos:ci backend 2>&1 | tee /tmp/docker.log
       - uses: azure/setup-helm@v4
       - run: helm lint deploy/helm/agendamento
       - uses: helm/kind-action@v1
@@ -56,7 +56,7 @@ jobs:
         if: failure()
         run: |
           { kubectl get pods -o wide; kubectl describe pods -l app.kubernetes.io/name=agendamento | tail -40;
-            kubectl logs -l app.kubernetes.io/name=agendamento --tail=40 --all-containers; } 2>&1 | tail -120 \
+            kubectl logs -l app.kubernetes.io/name=agendamento --tail=40 --all-containers; tail -30 /tmp/docker.log; } 2>&1 | tail -120 \
             | python3 -c "import sys; print('::error title=Diagnóstico do cluster::' + sys.stdin.read().replace('%','%25').replace('\r','').replace('\n','%0A'))"
 
   frontend:
