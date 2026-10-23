@@ -1,0 +1,6 @@
+apiVersion: v2
+name: agendamento
+description: API de agendamento de atendimentos (Spring Boot + GraphQL + Kafka)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

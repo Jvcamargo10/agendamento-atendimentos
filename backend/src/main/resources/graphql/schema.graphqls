@@ -1,0 +1,75 @@
+"Agendamento de atendimentos ao cidadão."
+type Query {
+    unidades: [Unidade!]!
+    servicos: [Servico!]!
+    "Horários com vaga em um dia (formato AAAA-MM-DD)."
+    horariosDisponiveis(unidadeId: ID!, servicoId: ID!, dia: String!): [Horario!]!
+    agendamento(codigo: String!): Agendamento
+    agendamentosDaUnidade(unidadeId: ID!, dia: String!): [Agendamento!]!
+    "Totais do dia por unidade, calculados a partir dos eventos do Kafka."
+    painel(dia: String!): [PainelDia!]!
+}
+
+type Mutation {
+    agendar(entrada: NovoAgendamento!): Agendamento!
+    "Permitido até 2 horas antes do horário. Libera a vaga."
+    cancelar(codigo: String!): Agendamento!
+    registrarComparecimento(codigo: String!, compareceu: Boolean!): Agendamento!
+}
+
+input NovoAgendamento {
+    vagaId: ID!
+    nome: String!
+    cpf: String!
+    email: String!
+}
+
+type Unidade {
+    id: ID!
+    nome: String!
+    endereco: String!
+    cidade: String!
+    uf: String!
+    servicos: [Servico!]!
+}
+
+type Servico {
+    id: ID!
+    nome: String!
+    duracaoMinutos: Int!
+}
+
+type Horario {
+    vagaId: ID!
+    "Data e hora ISO-8601 com fuso."
+    inicio: String!
+    disponiveis: Int!
+}
+
+enum Status {
+    AGENDADO
+    CANCELADO
+    ATENDIDO
+    FALTOU
+}
+
+type Agendamento {
+    codigo: String!
+    status: Status!
+    cidadaoNome: String!
+    "Só os 3 últimos dígitos: o CPF completo não é armazenado."
+    cpfMascarado: String!
+    email: String!
+    unidade: Unidade!
+    servico: Servico!
+    inicio: String!
+}
+
+type PainelDia {
+    unidade: Unidade!
+    dia: String!
+    agendados: Int!
+    cancelados: Int!
+    atendidos: Int!
+    faltas: Int!
+}

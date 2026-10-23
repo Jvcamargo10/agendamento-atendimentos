@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agendamento.nome" . }}
+  labels: {{- include "agendamento.rotulos" . | nindent 4 }}
+data:
+  DB_URL: {{ .Values.banco.url | quote }}
+  DB_USUARIO: {{ .Values.banco.usuario | quote }}
+  KAFKA_SERVIDORES: {{ .Values.kafka.servidores | quote }}
+  CORS_ORIGENS: {{ .Values.corsOrigens | quote }}

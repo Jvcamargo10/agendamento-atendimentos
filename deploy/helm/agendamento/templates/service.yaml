@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agendamento.nome" . }}
+  labels: {{- include "agendamento.rotulos" . | nindent 4 }}
+spec:
+  selector: {{- include "agendamento.seletor" . | nindent 4 }}
+  ports:
+    - { name: http, port: {{ .Values.service.port }}, targetPort: http }

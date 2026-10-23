@@ -1,0 +1,29 @@
+replicaCount: 2
+
+image:
+  repository: agendamento-atendimentos
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Conexões externas: o banco e o Kafka não são parte deste chart.
+banco:
+  url: jdbc:postgresql://postgres:5432/agendamento
+  usuario: postgres
+  # Nome do Secret com as chaves "senha" e "segredo-cpf". Criado fora do chart (ex.: External Secrets).
+  secret: agendamento-segredos
+kafka:
+  servidores: kafka:9092
+corsOrigens: https://jvcamargo10.github.io
+
+resources:
+  requests: { cpu: 250m, memory: 384Mi }
+  limits: { memory: 768Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  cpuAlvo: 70
+
+service:
+  port: 80

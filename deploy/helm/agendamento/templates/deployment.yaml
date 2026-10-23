@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agendamento.nome" . }}
+  labels: {{- include "agendamento.rotulos" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "agendamento.seletor" . | nindent 6 }}
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }   # troca de versão sem derrubar atendimento
+  template:
+    metadata:
+      labels: {{- include "agendamento.seletor" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8080"
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          envFrom:
+            - configMapRef: { name: {{ include "agendamento.nome" . }} }
+          env:
+            - name: DB_SENHA
+              valueFrom: { secretKeyRef: { name: {{ .Values.banco.secret }}, key: senha } }
+            - name: SEGREDO_CPF
+              valueFrom: { secretKeyRef: { name: {{ .Values.banco.secret }}, key: segredo-cpf } }
+          # startupProbe dá tempo para a JVM e as migrações; depois, liveness e readiness assumem.
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }

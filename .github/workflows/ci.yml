@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Back-end (Java + Testcontainers)
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: backend }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: "21", cache: maven }
+      - name: Compilar e testar (PostgreSQL e Kafka reais via Testcontainers)
+        run: mvn -B -ntp verify 2>&1 | tee build.log; test "${PIPESTATUS[0]}" -eq 0
+      - name: Resumo da falha
+        if: failure()
+        run: |
+          grep -E "ERROR|FAIL|Caused by|expected|Exception|\.java:\[" build.log | grep -v "^\[INFO\]" | head -60 \
+            | python3 -c "import sys; print('::error title=Falha no build::' + sys.stdin.read().replace('%','%25').replace('\r','').replace('\n','%0A'))"
+
+  kubernetes:
+    name: Kubernetes (kind + Helm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t agendamento-atendimentos:ci backend
+      - uses: azure/setup-helm@v4
+      - run: helm lint deploy/helm/agendamento
+      - uses: helm/kind-action@v1
+        with: { cluster_name: ci }
+      - run: kind load docker-image agendamento-atendimentos:ci --name ci
+      - name: Subir PostgreSQL e Kafka no cluster
+        run: |
+          kubectl apply -f deploy/kind/dependencias.yaml
+          kubectl rollout status deploy/postgres --timeout=180s
+          kubectl rollout status deploy/kafka --timeout=180s
+      - name: Instalar a API com Helm
+        run: |
+          helm upgrade --install ci deploy/helm/agendamento \
+            --set image.tag=ci --set autoscaling.enabled=false --set replicaCount=2 \
+            --wait --timeout 6m
+      - run: deploy/kind/teste-fumaca.sh
+      - name: Diagnóstico
+        if: failure()
+        run: |
+          { kubectl get pods -o wide; kubectl describe pods -l app.kubernetes.io/name=agendamento | tail -40;
+            kubectl logs -l app.kubernetes.io/name=agendamento --tail=40 --all-containers; } 2>&1 | tail -120 \
+            | python3 -c "import sys; print('::error title=Diagnóstico do cluster::' + sys.stdin.read().replace('%','%25').replace('\r','').replace('\n','%0A'))"
+
+  frontend:
+    name: Front-end (Angular)
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: frontend }
+    env:
+      NG_CLI_ANALYTICS: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:demo
+      - uses: actions/upload-pages-artifact@v4
+        with: { path: frontend/dist/frontend/browser }
+
+  deploy:
+    name: Publicar demo no GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    needs: [backend, kubernetes, frontend]
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment: { name: github-pages, url: "${{ steps.deploy.outputs.page_url }}" }
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

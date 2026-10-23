@@ -1,0 +1,10 @@
+# Durante manutenção dos nós, pelo menos uma réplica continua atendendo.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "agendamento.nome" . }}
+  labels: {{- include "agendamento.rotulos" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {{- include "agendamento.seletor" . | nindent 6 }}

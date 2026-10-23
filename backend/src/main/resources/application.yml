@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: agendamento-atendimentos
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/agendamento}
+    username: ${DB_USUARIO:postgres}
+    password: ${DB_SENHA:postgres}
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVIDORES:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+    consumer:
+      auto-offset-reset: earliest
+      properties:
+        isolation.level: read_committed
+  graphql:
+    graphiql:
+      enabled: true
+    cors:
+      allowed-origins: ${CORS_ORIGENS:http://localhost:4200}
+      allowed-methods: GET,POST
+
+agenda:
+  fuso: America/Sao_Paulo
+  dias-a-frente: 14
+  antecedencia-cancelamento: 2h
+  segredo-cpf: ${SEGREDO_CPF:troque-em-producao}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      aplicacao: ${spring.application.name}
+
+logging:
+  structured:
+    format:
+      console: ${LOG_FORMATO:ecs}
