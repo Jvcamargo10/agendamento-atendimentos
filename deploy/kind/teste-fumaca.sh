@@ -8,6 +8,7 @@ for i in $(seq 1 30); do curl -sf localhost:18080/actuator/health/readiness >/de
 resposta=$(curl -sf localhost:18080/graphql -H 'Content-Type: application/json' \
   -d '{"query":"{ unidades { nome servicos { nome } } }"}')
 echo "$resposta"
-echo "$resposta" | grep -q "Central de Atendimento Centro"
-curl -sf localhost:18080/actuator/prometheus | grep -q "outbox_pendentes"
+grep -q "Central de Atendimento Centro" <<<"$resposta"
+metricas=$(curl -sf localhost:18080/actuator/prometheus)
+grep -q "outbox_pendentes" <<<"$metricas"
 echo "OK: API respondendo no cluster"
